@@ -1,3 +1,4 @@
+import Carbon
 import XCTest
 @testable import Ujer
 
@@ -9,6 +10,14 @@ final class UjerTests: XCTestCase {
         XCTAssertTrue(DictationPhase.transcribing.canTransition(to: .done))
         XCTAssertFalse(DictationPhase.idle.canTransition(to: .recording))
         XCTAssertFalse(DictationPhase.done.canTransition(to: .recording))
+    }
+
+    func testHotkeyValidation() throws {
+        XCTAssertEqual(Hotkey.defaultValue.title, "⇧⌘Space")
+        XCTAssertThrowsError(try Hotkey(keyCode: UInt32(kVK_ANSI_A), modifiers: 0).validate())
+        XCTAssertThrowsError(try Hotkey(keyCode: UInt32(kVK_ANSI_5), modifiers: UInt32(cmdKey | shiftKey)).validate())
+        XCTAssertThrowsError(try Hotkey(keyCode: UInt32(kVK_Space), modifiers: UInt32(cmdKey)).validate())
+        XCTAssertNoThrow(try Hotkey(keyCode: UInt32(kVK_ANSI_A), modifiers: UInt32(cmdKey | optionKey)).validate())
     }
 
     func testEndpointAllowsHTTPSAndLoopbackOnly() throws {

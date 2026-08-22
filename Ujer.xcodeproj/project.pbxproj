@@ -12,12 +12,15 @@
 		000000000000000000000052 /* FocusInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000032 /* FocusInjector.swift */; };
 		000000000000000000000053 /* Transcription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000033 /* Transcription.swift */; };
 		000000000000000000000062 /* RecordingHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000037 /* RecordingHUD.swift */; };
+		000000000000000000000063 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000038 /* Assets.xcassets */; };
+		000000000000000000000064 /* GlobalHotkey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000039 /* GlobalHotkey.swift */; };
 		000000000000000000000054 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000040 /* AppKit.framework */; };
 		000000000000000000000055 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000041 /* AVFoundation.framework */; };
 		000000000000000000000056 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000042 /* ApplicationServices.framework */; };
 		000000000000000000000057 /* ServiceManagement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000043 /* ServiceManagement.framework */; };
 		000000000000000000000058 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000044 /* Security.framework */; };
 		000000000000000000000059 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000045 /* SwiftUI.framework */; };
+		000000000000000000000065 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000046 /* Carbon.framework */; };
 		000000000000000000000060 /* UjerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000036 /* UjerTests.swift */; };
 		000000000000000000000061 /* Ujer.app in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000005 /* Ujer.app */; };
 /* End PBXBuildFile section */
@@ -43,12 +46,15 @@
 		000000000000000000000035 /* Ujer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Ujer.entitlements; sourceTree = "<group>"; };
 		000000000000000000000036 /* UjerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UjerTests.swift; sourceTree = "<group>"; };
 		000000000000000000000037 /* RecordingHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingHUD.swift; sourceTree = "<group>"; };
+		000000000000000000000038 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		000000000000000000000039 /* GlobalHotkey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkey.swift; sourceTree = "<group>"; };
 		000000000000000000000040 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		000000000000000000000041 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		000000000000000000000042 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
 		000000000000000000000043 /* ServiceManagement.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ServiceManagement.framework; path = System/Library/Frameworks/ServiceManagement.framework; sourceTree = SDKROOT; };
 		000000000000000000000044 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		000000000000000000000045 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		000000000000000000000046 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +68,7 @@
 				000000000000000000000057 /* ServiceManagement.framework in Frameworks */,
 				000000000000000000000058 /* Security.framework in Frameworks */,
 				000000000000000000000059 /* SwiftUI.framework in Frameworks */,
+				000000000000000000000065 /* Carbon.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -94,6 +101,8 @@
 				000000000000000000000032 /* FocusInjector.swift */,
 				000000000000000000000033 /* Transcription.swift */,
 				000000000000000000000037 /* RecordingHUD.swift */,
+				000000000000000000000038 /* Assets.xcassets */,
+				000000000000000000000039 /* GlobalHotkey.swift */,
 				000000000000000000000034 /* Info.plist */,
 				000000000000000000000035 /* Ujer.entitlements */,
 			);
@@ -117,6 +126,7 @@
 				000000000000000000000043 /* ServiceManagement.framework */,
 				000000000000000000000044 /* Security.framework */,
 				000000000000000000000045 /* SwiftUI.framework */,
+				000000000000000000000046 /* Carbon.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -209,6 +219,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				000000000000000000000063 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -224,6 +235,7 @@
 				000000000000000000000052 /* FocusInjector.swift in Sources */,
 				000000000000000000000053 /* Transcription.swift in Sources */,
 				000000000000000000000062 /* RecordingHUD.swift in Sources */,
+				000000000000000000000064 /* GlobalHotkey.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -268,6 +280,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Ujer/Ujer.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
@@ -290,6 +303,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Ujer/Ujer.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;

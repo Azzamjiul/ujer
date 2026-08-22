@@ -7,9 +7,10 @@ if [[ -z "$DEVELOPER_ID_APPLICATION" || -z "$NOTARY_PROFILE" ]]; then
 fi
 
 task_root="$(cd "$(dirname "$0")/.." && pwd)"
+version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$task_root/Ujer/Info.plist")"
 archive_path="$task_root/build/Ujer.xcarchive"
 export_path="$task_root/build/export"
-dmg_path="$task_root/build/Ujer.dmg"
+dmg_path="$task_root/dist/Ujer-$version-arm64.dmg"
 
 rm -rf "$archive_path" "$export_path" "$dmg_path"
 xcodebuild archive \
@@ -22,11 +23,11 @@ xcodebuild archive \
   CODE_SIGN_IDENTITY="$DEVELOPER_ID_APPLICATION" \
   OTHER_CODE_SIGN_FLAGS="--options runtime"
 
-mkdir -p "$export_path"
+mkdir -p "$export_path" "$(dirname "$dmg_path")"
 cp -R "$archive_path/Products/Applications/Ujer.app" "$export_path/"
+ln -s /Applications "$export_path/Applications"
 hdiutil create -volname Ujer -srcfolder "$export_path" -ov -format UDZO "$dmg_path"
 xcrun notarytool submit "$dmg_path" --keychain-profile "$NOTARY_PROFILE" --wait
 xcrun stapler staple "$dmg_path"
 xcrun stapler validate "$dmg_path"
 spctl --assess --type open --context context:primary-signature "$dmg_path"
-

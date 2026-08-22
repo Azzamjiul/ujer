@@ -74,6 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         onStop: { [weak self] in self?.stopDictation() }
     )
     private let settings = SettingsStore()
+    private let globalHotkey = GlobalHotkey()
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private var phase = DictationPhase.idle
     private var session: DictationSession?
@@ -90,6 +91,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.target = self
         button.action = #selector(statusItemPressed)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        if let error = setGlobalHotkey(settings.hotkey) {
+            message = error
+        }
         renderStatus()
     }
 
@@ -110,12 +114,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc func hotkeyPressed() {
+        switch phase {
+        case .idle:
+            startDictation()
+        case .recording:
+            stopDictation()
+        case .preparing:
+            cancelPreparation()
+        default:
+            NSSound.beep()
+        }
+    }
+
     @objc private func openSettings() {
-        let controller = NSHostingController(rootView: SettingsView(settings: settings))
+        let controller = NSHostingController(rootView: SettingsView(settings: settings, setHotkey: setGlobalHotkey))
         let window = NSWindow(contentViewController: controller)
         window.title = "Ujer Settings"
         window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 440, height: 310))
+        window.setContentSize(NSSize(width: 440, height: 380))
         window.center()
         window.isReleasedWhenClosed = false
         settingsWindow = window
@@ -126,6 +143,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func quit() {
         cleanupSession()
         NSApp.terminate(nil)
+    }
+
+    private func setGlobalHotkey(_ shortcut: Hotkey) -> String? {
+        do {
+            try globalHotkey.replace(with: shortcut)
+            settings.saveHotkey(shortcut)
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
     }
 
     private func showMenu() {
@@ -317,6 +344,7 @@ final class SettingsStore: ObservableObject {
     @Published var baseURL: String
     @Published var model: String
     @Published var autoInsert: Bool
+    @Published var hotkey: Hotkey
     @Published private(set) var launchAtLogin: Bool
 
     init() {
@@ -325,10 +353,13 @@ final class SettingsStore: ObservableObject {
             "baseURL": "https://api.openai.com/v1",
             "model": "gpt-transcribe",
             "autoInsert": true,
+            "hotkeyKeyCode": Int(Hotkey.defaultValue.keyCode),
+            "hotkeyModifiers": Int(Hotkey.defaultValue.modifiers),
         ])
         baseURL = defaults.string(forKey: "baseURL")!
         model = defaults.string(forKey: "model")!
         autoInsert = defaults.bool(forKey: "autoInsert")
+        hotkey = Hotkey(keyCode: UInt32(defaults.integer(forKey: "hotkeyKeyCode")), modifiers: UInt32(defaults.integer(forKey: "hotkeyModifiers")))
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
@@ -347,6 +378,12 @@ final class SettingsStore: ObservableObject {
         try Keychain.read()
     }
 
+    func saveHotkey(_ shortcut: Hotkey) {
+        UserDefaults.standard.set(Int(shortcut.keyCode), forKey: "hotkeyKeyCode")
+        UserDefaults.standard.set(Int(shortcut.modifiers), forKey: "hotkeyModifiers")
+        hotkey = shortcut
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) throws {
         if enabled {
             try SMAppService.mainApp.register()
@@ -360,8 +397,10 @@ final class SettingsStore: ObservableObject {
 @MainActor
 private struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
+    let setHotkey: (Hotkey) -> String?
     @State private var token = ""
     @State private var notice = ""
+    @State private var hotkeyNotice = ""
 
     var body: some View {
         Form {
@@ -370,6 +409,30 @@ private struct SettingsView: View {
             TextField("Model", text: $settings.model)
             SecureField("Token", text: $token)
             Toggle("Auto-insert transcript", isOn: $settings.autoInsert)
+            HStack {
+                Text("Record shortcut")
+                Spacer()
+                HotkeyRecorder(shortcut: settings.hotkey) { shortcut in
+                    if let error = setHotkey(shortcut) {
+                        hotkeyNotice = error
+                    } else {
+                        hotkeyNotice = ""
+                    }
+                }
+                .frame(width: 120, height: 28)
+            }
+            HStack {
+                Button("Reset to default") {
+                    if let error = setHotkey(.defaultValue) {
+                        hotkeyNotice = error
+                    } else {
+                        hotkeyNotice = ""
+                    }
+                }
+                if !hotkeyNotice.isEmpty {
+                    Text(hotkeyNotice).foregroundStyle(.secondary)
+                }
+            }
             Toggle("Launch at login", isOn: Binding(
                 get: { settings.launchAtLogin },
                 set: { enabled in

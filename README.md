@@ -16,7 +16,7 @@ Ujer records only while you explicitly start a session. While recording, it show
 
 ## What it does
 
-- Lives in the menu bar and starts/stops with one click.
+- Lives in the menu bar and starts/stops with one click or a configurable global shortcut (default: `⌘⇧Space`).
 - Shows a draggable recording HUD with elapsed time, a real audio-level waveform, and a stop button.
 - Records mono AAC audio locally, sends it to one OpenAI-compatible `POST /audio/transcriptions` endpoint, then deletes the temporary recording.
 - Inserts the result into the focused text field through Accessibility, with a guarded clipboard fallback when direct insertion is unsupported.
@@ -39,7 +39,7 @@ Run the **Ujer** scheme in Xcode, then:
 1. Open **Settings** from the menu-bar icon.
 2. Set your OpenAI-compatible base URL, model, and token. The defaults are `https://api.openai.com/v1` and `gpt-transcribe`.
 3. Grant Microphone and Accessibility access when macOS asks.
-4. Left-click the Ujer icon to record. Drag the HUD wherever it feels right.
+4. Left-click the Ujer icon or press `⌘⇧Space` to record. Change the shortcut in Settings; macOS-reserved shortcuts are rejected.
 
 ## Privacy and safety
 
@@ -57,8 +57,8 @@ xcodebuild test \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-`scripts/release.sh` contains the Developer ID archive, notarization, and DMG release sequence.
+`scripts/release.sh` contains the Developer ID archive, notarization, and DMG release sequence. Its final artifact is `dist/Ujer-<version>-arm64.dmg`.
 
 ## What Ujer deliberately does not do
 
-It has no cloud sync, analytics, updater, voice history, global shortcut, or provider picker. One small job: speak into the app you are already using.
+It has no cloud sync, analytics, updater, voice history, or provider picker. One small job: speak into the app you are already using.
