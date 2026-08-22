@@ -8,6 +8,13 @@ Click the Ujer icon, talk, hit stop. Your audio is transcribed through the endpo
 
 No account system. No Ujer backend. No history. No analytics.
 
+## Repository layout
+
+```
+macos/     Native macOS app, tests, and release script
+android/   Reserved for the Android app when implementation begins
+```
+
 ## Why I made this
 
 I wanted dictation that feels like a Mac utility, not another destination app. The note should land exactly where I was writing, then get out of the way.
@@ -31,7 +38,7 @@ Requirements: Apple Silicon, macOS 14+, Xcode 26.2.
 ```bash
 git clone https://github.com/Azzamjiul/ujer.git
 cd ujer
-open Ujer.xcodeproj
+open macos/Ujer.xcodeproj
 ```
 
 Run the **Ujer** scheme in Xcode, then:
@@ -51,13 +58,13 @@ Ujer checks the original target again before pasting. If the focus cannot be ver
 
 ```bash
 xcodebuild test \
-  -project Ujer.xcodeproj \
+  -project macos/Ujer.xcodeproj \
   -scheme Ujer \
   -destination 'platform=macOS' \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-`scripts/release.sh` contains the Developer ID archive, notarization, and DMG release sequence. Its final artifact is `dist/Ujer-<version>-arm64.dmg`.
+`macos/scripts/release.sh` contains the Developer ID archive, notarization, and DMG release sequence. Its final artifact is `macos/dist/Ujer-<version>-arm64.dmg`.
 
 ## What Ujer deliberately does not do
 
