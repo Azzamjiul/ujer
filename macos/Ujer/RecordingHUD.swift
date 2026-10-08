@@ -48,6 +48,22 @@ final class RecordingHUD {
         update()
     }
 
+    func showResult(_ message: String) {
+        timer?.invalidate()
+        startedAt = nil
+        view.resultMessage = message
+        view.needsDisplay = true
+        panel.orderFrontRegardless()
+
+        let dismissTimer = Timer(timeInterval: 2.5, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.hide()
+            }
+        }
+        timer = dismissTimer
+        RunLoop.main.add(dismissTimer, forMode: .common)
+    }
+
     func hide() {
         timer?.invalidate()
         timer = nil
@@ -66,12 +82,14 @@ final class RecordingHUD {
 private final class RecordingHUDView: NSView {
     var elapsed: TimeInterval = 0
     var onStop: (() -> Void)?
+    var resultMessage: String?
 
     private let stopRect = NSRect(x: 235, y: 11, width: 36, height: 36)
     private var dragStart: (mouse: NSPoint, panel: NSPoint)?
     private var levels = Array(repeating: CGFloat.zero, count: 28)
 
     func resetWaveform() {
+        resultMessage = nil
         levels = Array(repeating: 0, count: levels.count)
     }
 
@@ -83,6 +101,11 @@ private final class RecordingHUDView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         NSColor(calibratedWhite: 0.13, alpha: 0.96).setFill()
         NSBezierPath(roundedRect: bounds, xRadius: 18, yRadius: 18).fill()
+
+        if let resultMessage {
+            drawResult(resultMessage)
+            return
+        }
 
         let timerText = String(format: "%d:%02d", Int(elapsed) / 60, Int(elapsed) % 60)
         let attributes: [NSAttributedString.Key: Any] = [
@@ -113,7 +136,34 @@ private final class RecordingHUDView: NSView {
         NSBezierPath(roundedRect: square, xRadius: 2, yRadius: 2).fill()
     }
 
+    private func drawResult(_ message: String) {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 14, weight: .semibold),
+            .foregroundColor: NSColor.white,
+        ]
+        let textSize = (message as NSString).size(withAttributes: attributes)
+        let contentWidth = 22 + 10 + textSize.width
+        let startX = (bounds.width - contentWidth) / 2
+        let checkRect = NSRect(x: startX, y: bounds.midY - 11, width: 22, height: 22)
+
+        NSColor.systemGreen.setFill()
+        NSBezierPath(ovalIn: checkRect).fill()
+        let check = NSBezierPath()
+        check.move(to: NSPoint(x: checkRect.minX + 5, y: checkRect.midY))
+        check.line(to: NSPoint(x: checkRect.minX + 9, y: checkRect.midY - 4))
+        check.line(to: NSPoint(x: checkRect.minX + 17, y: checkRect.midY + 5))
+        check.lineWidth = 2
+        NSColor.white.setStroke()
+        check.stroke()
+
+        (message as NSString).draw(
+            at: NSPoint(x: startX + 32, y: (bounds.height - textSize.height) / 2),
+            withAttributes: attributes
+        )
+    }
+
     override func mouseDown(with event: NSEvent) {
+        guard resultMessage == nil else { return }
         if stopRect.contains(convert(event.locationInWindow, from: nil)) {
             onStop?()
         } else if let panel = window {

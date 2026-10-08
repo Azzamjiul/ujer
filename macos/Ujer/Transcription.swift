@@ -40,10 +40,11 @@ enum UjerError: LocalizedError {
 }
 
 struct EndpointConfiguration: Equatable, Sendable {
+    let provider: TranscriptionProvider
     let baseURL: URL
     let model: String
 
-    init(baseURL: String, model: String) throws {
+    init(baseURL: String, model: String, provider: TranscriptionProvider = .openAICompatible) throws {
         let trimmedURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedModel.isEmpty, trimmedModel.count <= 128,
@@ -62,12 +63,38 @@ struct EndpointConfiguration: Equatable, Sendable {
         guard scheme == "https" || (scheme == "http" && Self.isLoopback(host)) else {
             throw UjerError.insecureEndpoint
         }
+        self.provider = provider
         self.baseURL = url
         self.model = trimmedModel
     }
 
     var transcriptionURL: URL {
-        baseURL.appendingPathComponent("audio").appendingPathComponent("transcriptions")
+        switch provider {
+        case .openAICompatible:
+            return baseURL.appendingPathComponent("audio").appendingPathComponent("transcriptions")
+        case .deepgram:
+            let path = baseURL.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if path.hasSuffix("listen") {
+                return baseURL
+            }
+            if path == "v1" || path.hasSuffix("/v1") {
+                return baseURL.appendingPathComponent("listen")
+            }
+            return baseURL.appendingPathComponent("v1").appendingPathComponent("listen")
+        }
+    }
+
+    var connectionTestURL: URL {
+        switch provider {
+        case .openAICompatible:
+            return baseURL.appendingPathComponent("models")
+        case .deepgram:
+            var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+            components?.path = "/v1/projects"
+            components?.query = nil
+            components?.fragment = nil
+            return components?.url ?? baseURL.appendingPathComponent("v1/projects")
+        }
     }
 
     static func isLoopback(_ host: String) -> Bool {
@@ -93,16 +120,69 @@ struct EndpointConfiguration: Equatable, Sendable {
     }
 }
 
+enum TranscriptionProvider: String, CaseIterable, Identifiable, Sendable {
+    case openAICompatible = "openai"
+    case deepgram
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .openAICompatible: "OpenAI-compatible"
+        case .deepgram: "Deepgram"
+        }
+    }
+
+    var defaultBaseURL: String {
+        switch self {
+        case .openAICompatible: "https://api.openai.com/v1"
+        case .deepgram: "https://api.deepgram.com/v1"
+        }
+    }
+
+    var defaultModel: String {
+        switch self {
+        case .openAICompatible: "gpt-transcribe"
+        case .deepgram: "nova-3"
+        }
+    }
+}
+
 struct TranscriptionResponse: Decodable {
     let text: String
+}
+
+struct DeepgramResponse: Decodable {
+    struct Results: Decodable {
+        struct Channel: Decodable {
+            struct Alternative: Decodable {
+                let transcript: String
+            }
+
+            let alternatives: [Alternative]
+        }
+
+        let channels: [Channel]
+    }
+
+    let results: Results
+
+    var transcript: String? {
+        results.channels.first?.alternatives.first?.transcript
+    }
 }
 
 enum MultipartForm {
     static let maximumFileSize = 25_000_000
 
-    static func makeBody(fileURL: URL, model: String, boundary: String) throws -> Data {
+    static func audioData(fileURL: URL) throws -> Data {
         let audio = try Data(contentsOf: fileURL, options: .mappedIfSafe)
         guard audio.count <= maximumFileSize else { throw UjerError.fileTooLarge }
+        return audio
+    }
+
+    static func makeBody(fileURL: URL, model: String, boundary: String) throws -> Data {
+        let audio = try audioData(fileURL: fileURL)
 
         var body = Data()
         body.appendUTF8("--\(boundary)\r\n")
@@ -146,18 +226,74 @@ final class SameOriginRedirectDelegate: NSObject, URLSessionTaskDelegate {
 }
 
 enum TranscriptionClient {
+    static func testConnection(
+        configuration: EndpointConfiguration,
+        token: String
+    ) async throws {
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedToken.isEmpty else { throw UjerError.missingToken }
+
+        var request = URLRequest(url: configuration.connectionTestURL)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 15
+        let authScheme = configuration.provider == .deepgram ? "Token" : "Bearer"
+        request.setValue("\(authScheme) \(trimmedToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.timeoutIntervalForRequest = 15
+        sessionConfiguration.timeoutIntervalForResource = 20
+        let session = URLSession(
+            configuration: sessionConfiguration,
+            delegate: SameOriginRedirectDelegate(origin: configuration.baseURL),
+            delegateQueue: nil
+        )
+        defer { session.invalidateAndCancel() }
+        let response: URLResponse
+        do {
+            (_, response) = try await session.data(for: request)
+        } catch let error as URLError where error.code == .timedOut {
+            throw UjerError.requestTimedOut
+        } catch {
+            throw UjerError.network(error.localizedDescription)
+        }
+        guard let http = response as? HTTPURLResponse else { throw UjerError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw UjerError.serverStatus(http.statusCode) }
+    }
+
     static func transcribe(
         fileURL: URL,
         configuration: EndpointConfiguration,
         token: String
     ) async throws -> String {
-        let boundary = "Ujer-\(UUID().uuidString)"
-        let body = try MultipartForm.makeBody(fileURL: fileURL, model: configuration.model, boundary: boundary)
-        var request = URLRequest(url: configuration.transcriptionURL)
+        let body: Data
+        let contentType: String
+        switch configuration.provider {
+        case .openAICompatible:
+            let boundary = "Ujer-\(UUID().uuidString)"
+            body = try MultipartForm.makeBody(fileURL: fileURL, model: configuration.model, boundary: boundary)
+            contentType = "multipart/form-data; boundary=\(boundary)"
+        case .deepgram:
+            body = try MultipartForm.audioData(fileURL: fileURL)
+            contentType = "audio/mp4"
+        }
+
+        var requestURL = configuration.transcriptionURL
+        if configuration.provider == .deepgram {
+            var components = URLComponents(url: requestURL, resolvingAgainstBaseURL: false)
+            components?.queryItems = [
+                URLQueryItem(name: "model", value: configuration.model),
+                URLQueryItem(name: "smart_format", value: "true"),
+                URLQueryItem(name: "detect_language", value: "true"),
+            ]
+            requestURL = components?.url ?? requestURL
+        }
+        var request = URLRequest(url: requestURL)
         request.httpMethod = "POST"
         request.timeoutInterval = 60
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        let authScheme = configuration.provider == .deepgram ? "Token" : "Bearer"
+        request.setValue("\(authScheme) \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
 
         let sessionConfiguration = URLSessionConfiguration.ephemeral
         sessionConfiguration.timeoutIntervalForRequest = 60
@@ -179,7 +315,23 @@ enum TranscriptionClient {
         }
         guard let http = response as? HTTPURLResponse else { throw UjerError.invalidResponse }
         guard (200...299).contains(http.statusCode) else { throw UjerError.serverStatus(http.statusCode) }
-        let text = try JSONDecoder().decode(TranscriptionResponse.self, from: data).text
+        let rawText: String
+        do {
+            switch configuration.provider {
+            case .openAICompatible:
+                rawText = try JSONDecoder().decode(TranscriptionResponse.self, from: data).text
+            case .deepgram:
+                guard let transcript = try JSONDecoder().decode(DeepgramResponse.self, from: data).transcript else {
+                    throw UjerError.emptyTranscript
+                }
+                rawText = transcript
+            }
+        } catch let error as UjerError {
+            throw error
+        } catch {
+            throw UjerError.invalidResponse
+        }
+        let text = rawText
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { throw UjerError.emptyTranscript }
         return text

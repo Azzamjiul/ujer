@@ -12,8 +12,45 @@ No account system. No Ujer backend. No history. No analytics.
 
 ```
 macos/     Native macOS app, tests, and release script
-android/   Reserved for the Android app when implementation begins
+android/   Native Android Quick Settings dictation app
 ```
+
+## Android
+
+Ujer for Android keeps your Samsung Keyboard. Configure an OpenAI-compatible
+endpoint (default: OpenAI and `gpt-transcribe`) or Deepgram, add the **Ujer**
+tile to Quick Settings, then tap it to dictate. The result is copied to the
+clipboard so you can paste it from Samsung Keyboard's Clipboard panel.
+
+```bash
+cd android
+./gradlew :app:assembleDebug
+```
+
+For local install/testing, use the debug APK:
+
+```bash
+cd android
+./gradlew :app:assembleDebug
+```
+
+For Play Store distribution, create `android/keystore.properties` from
+`android/keystore.properties.example` and configure the upload key registered
+with Google Play App Signing. Then build the required Android App Bundle:
+
+```bash
+cd android
+./gradlew :app:testDebugUnitTest :app:bundleRelease
+```
+
+The bundle is written to
+`android/app/build/outputs/bundle/release/app-release.aab`. Release builds
+intentionally fail when the upload keystore is not configured; never use the
+debug key for Play Store distribution. Keep the keystore and
+`keystore.properties` out of Git.
+
+The Android app intentionally has no overlay, custom keyboard, Accessibility
+service, or persistent background recorder.
 
 ## Why I made this
 
@@ -25,7 +62,7 @@ Ujer records only while you explicitly start a session. While recording, it show
 
 - Lives in the menu bar and starts/stops with one click or a configurable global shortcut (default: `⌘⇧Space`).
 - Shows a draggable recording HUD with elapsed time, a real audio-level waveform, and a stop button.
-- Records mono AAC audio locally, sends it to one OpenAI-compatible `POST /audio/transcriptions` endpoint, then deletes the temporary recording.
+- Records mono AAC audio locally, sends it to the selected OpenAI-compatible or Deepgram transcription endpoint, then deletes the temporary recording.
 - Inserts the result into the focused text field through Accessibility, with a guarded clipboard fallback when direct insertion is unsupported.
 - Lets you configure the base URL, model, and API token in the app.
 - Stores the token in the macOS Keychain.
@@ -44,7 +81,7 @@ open macos/Ujer.xcodeproj
 Run the **Ujer** scheme in Xcode, then:
 
 1. Open **Settings** from the menu-bar icon.
-2. Set your OpenAI-compatible base URL, model, and token. The defaults are `https://api.openai.com/v1` and `gpt-transcribe`.
+2. Choose **OpenAI-compatible** or **Deepgram**, then set the base URL, model, and token. Deepgram defaults to `https://api.deepgram.com/v1` and `nova-3`.
 3. Grant Microphone and Accessibility access when macOS asks.
 4. Left-click the Ujer icon or press `⌘⇧Space` to record. Change the shortcut in Settings; macOS-reserved shortcuts are rejected.
 
@@ -68,4 +105,4 @@ xcodebuild test \
 
 ## What Ujer deliberately does not do
 
-It has no cloud sync, analytics, updater, voice history, or provider picker. One small job: speak into the app you are already using.
+It has no cloud sync, analytics, updater, or voice history. One small job: speak into the app you are already using.

@@ -41,22 +41,20 @@ enum FocusInjector {
     }
 
     static func insert(_ transcript: String, into target: FocusTarget) -> InjectionResult {
+        copy(transcript)
         guard verifyApplication(target) else {
-            copy(transcript)
             return .copiedOnly("Target focus changed; transcript was copied instead.")
         }
         guard let element = target.element else {
-            return pasteIntoApplication(transcript, target: target)
+            return pasteIntoApplication(target: target)
         }
         guard !isSecureTextField(element) else {
-            copy(transcript)
             return .copiedOnly("Secure fields are never filled; transcript was copied instead.")
         }
 
         NSRunningApplication(processIdentifier: target.pid)?.activate(options: [])
         _ = AXUIElementSetAttributeValue(target.application, kAXFocusedAttribute as CFString, kCFBooleanTrue)
         guard verify(target) else {
-            copy(transcript)
             return .copiedOnly("Target focus changed; transcript was copied instead.")
         }
         var settable = DarwinBoolean(false)
@@ -66,34 +64,18 @@ enum FocusInjector {
             return .inserted
         }
 
-        return pasteIntoApplication(transcript, target: target)
+        return pasteIntoApplication(target: target)
     }
 
-    private static func pasteIntoApplication(_ transcript: String, target: FocusTarget) -> InjectionResult {
-        let pasteboard = NSPasteboard.general
-        let snapshot = ClipboardSnapshot(pasteboard)
+    private static func pasteIntoApplication(target: FocusTarget) -> InjectionResult {
         NSRunningApplication(processIdentifier: target.pid)?.activate(options: [])
-        copy(transcript)
-        let ujerChangeCount = pasteboard.changeCount
         guard verifyApplication(target) else {
             return .copiedOnly("Target focus changed; transcript was copied instead.")
         }
         guard postPaste() else {
             return .copiedOnly("Ujer could not send the paste command; transcript was copied instead.")
         }
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 250_000_000)
-            guard Self.shouldRestoreClipboard(
-                currentChangeCount: pasteboard.changeCount,
-                ujerChangeCount: ujerChangeCount
-            ) else { return }
-            snapshot.restore(to: pasteboard)
-        }
         return .inserted
-    }
-
-    static func shouldRestoreClipboard(currentChangeCount: Int, ujerChangeCount: Int) -> Bool {
-        currentChangeCount == ujerChangeCount
     }
 
     static func copy(_ transcript: String) {
@@ -161,27 +143,5 @@ enum AccessibilityError: LocalizedError {
         case .noFocusedElement:
             "No text field is focused."
         }
-    }
-}
-
-@MainActor
-struct ClipboardSnapshot {
-    let items: [NSPasteboardItem]
-
-    init(_ pasteboard: NSPasteboard) {
-        items = (pasteboard.pasteboardItems ?? []).map { source in
-            let copy = NSPasteboardItem()
-            for type in source.types {
-                if let data = source.data(forType: type) {
-                    copy.setData(data, forType: type)
-                }
-            }
-            return copy
-        }
-    }
-
-    func restore(to pasteboard: NSPasteboard) {
-        pasteboard.clearContents()
-        pasteboard.writeObjects(items)
     }
 }

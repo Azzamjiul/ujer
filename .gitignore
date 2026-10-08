@@ -4,3 +4,9 @@ build/
 dist/
 *.xcuserstate
 xcuserdata/
+local.properties
+android/keystore.properties
+android/*.jks
+android/*.keystore
+.gradle/
+*.hprof

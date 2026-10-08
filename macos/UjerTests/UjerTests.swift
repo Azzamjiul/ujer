@@ -8,6 +8,7 @@ final class UjerTests: XCTestCase {
         XCTAssertTrue(DictationPhase.preparing.canTransition(to: .error))
         XCTAssertTrue(DictationPhase.recording.canTransition(to: .transcribing))
         XCTAssertTrue(DictationPhase.transcribing.canTransition(to: .done))
+        XCTAssertTrue(DictationPhase.error.canTransition(to: .transcribing))
         XCTAssertFalse(DictationPhase.idle.canTransition(to: .recording))
         XCTAssertFalse(DictationPhase.done.canTransition(to: .recording))
     }
@@ -28,6 +29,34 @@ final class UjerTests: XCTestCase {
         XCTAssertNoThrow(try EndpointConfiguration(baseURL: "http://localhost:8080/v1", model: "local"))
         XCTAssertThrowsError(try EndpointConfiguration(baseURL: "http://example.test/v1", model: "local"))
         XCTAssertThrowsError(try EndpointConfiguration(baseURL: "https://user@example.test/v1", model: "local"))
+    }
+
+    func testDeepgramEndpointUsesListenPath() throws {
+        let configuration = try EndpointConfiguration(
+            baseURL: "https://api.deepgram.com/v1",
+            model: "nova-3",
+            provider: .deepgram
+        )
+        XCTAssertEqual(configuration.transcriptionURL.absoluteString, "https://api.deepgram.com/v1/listen")
+        XCTAssertEqual(
+            try EndpointConfiguration(baseURL: "https://api.deepgram.com", model: "nova-3", provider: .deepgram).transcriptionURL.absoluteString,
+            "https://api.deepgram.com/v1/listen"
+        )
+        XCTAssertEqual(
+            try EndpointConfiguration(baseURL: "https://api.deepgram.com/v1/listen", model: "nova-3", provider: .deepgram).transcriptionURL.absoluteString,
+            "https://api.deepgram.com/v1/listen"
+        )
+    }
+
+    func testConnectionTestPaths() throws {
+        XCTAssertEqual(
+            try EndpointConfiguration(baseURL: "https://api.openai.com/v1", model: "gpt-transcribe").connectionTestURL.absoluteString,
+            "https://api.openai.com/v1/models"
+        )
+        XCTAssertEqual(
+            try EndpointConfiguration(baseURL: "https://api.deepgram.com/v1/listen", model: "nova-3", provider: .deepgram).connectionTestURL.absoluteString,
+            "https://api.deepgram.com/v1/projects"
+        )
     }
 
     func testRedirectRequiresSameOrigin() throws {
@@ -51,28 +80,13 @@ final class UjerTests: XCTestCase {
     }
 
     @MainActor
-    func testTranscriptionResponseAndClipboardRaceGuard() throws {
+    func testTranscriptionResponse() throws {
         XCTAssertEqual(try JSONDecoder().decode(TranscriptionResponse.self, from: Data(#"{"text":"halo"}"#.utf8)).text, "halo")
-        XCTAssertTrue(FocusInjector.shouldRestoreClipboard(currentChangeCount: 7, ujerChangeCount: 7))
-        XCTAssertFalse(FocusInjector.shouldRestoreClipboard(currentChangeCount: 8, ujerChangeCount: 7))
     }
 
-    @MainActor
-    func testClipboardSnapshotCopiesPasteboardItemData() {
-        let source = NSPasteboard(name: .init("UjerTests-\(UUID().uuidString)"))
-        source.clearContents()
-        let item = NSPasteboardItem()
-        item.setString("before", forType: .string)
-        item.setData(Data([0x01, 0x02]), forType: .init("cc.alat.ujer.test"))
-        source.writeObjects([item])
-
-        let snapshot = ClipboardSnapshot(source)
-        source.clearContents()
-        snapshot.restore(to: source)
-
-        let restored = source.pasteboardItems?.first
-        XCTAssertEqual(restored?.string(forType: .string), "before")
-        XCTAssertEqual(restored?.data(forType: .init("cc.alat.ujer.test")), Data([0x01, 0x02]))
+    func testDeepgramResponse() throws {
+        let data = Data(#"{"results":{"channels":[{"alternatives":[{"transcript":"halo dunia"}]}]}}"#.utf8)
+        XCTAssertEqual(try JSONDecoder().decode(DeepgramResponse.self, from: data).transcript, "halo dunia")
     }
 
     func testKeychainRoundTrip() throws {
